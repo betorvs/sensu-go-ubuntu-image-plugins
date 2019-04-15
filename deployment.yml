@@ -1,0 +1,66 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sensu
+  labels:
+    app.kubernetes.io/name: sensu-agent
+
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: sensu-agent
+  namespace: sensu
+  labels:
+    app.kubernetes.io/name: sensu-agent
+spec:
+  replicas: 1
+  template:
+    metadata:
+      name: sensu-agent
+      labels:
+        app.kubernetes.io/name: sensu-agent
+    spec:
+      containers:
+        - name: sensu-agent
+          image: REPOSITORY:TAG
+          ports:
+            - name: api
+              containerPort: 3031
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3031
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+          env:
+            - name: SENSU_BACKEND_URL
+              value: wss://sensu-backend:8081
+            - name: SENSU_SUBSCRIPTIONS
+              value: kubernetes-services
+            - name: SENSU_NAMESPACE
+              value: default
+            - name: SENSU_LOGLEVEL
+              value: debug
+            - name: SENSU_AGENT_NAME
+              value: kubernetes-test
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sensu
+  namespace: sensu
+  labels:
+    app.kubernetes.io/name: sensu-agent
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3031
+      targetPort: 3031
+      protocol: TCP
+      name: api
+  selector:
+    app.kubernetes.io/name: sensu-agent
